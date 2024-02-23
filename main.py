@@ -6,7 +6,7 @@ from io import BytesIO
 
 from PIL import Image
 from fastapi import FastAPI, Request
-from funcaptcha_challenger import predict
+from funcaptcha_challenger import predict, model
 from pydantic import BaseModel
 
 from util.log import logger
@@ -111,5 +111,8 @@ async def error_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import uvicorn
+
+    # 设置模型自动更新为False
+    model.auto_update = False
 
     uvicorn.run(app, host="0.0.0.0", port=PORT)
