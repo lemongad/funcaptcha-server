@@ -46,7 +46,6 @@ def process_image(base64_image: str, variant: str):
 async def create_task(request: Request):
     try:
         request_data = await request.json()
-        print(request_data)
         data = TaskData.parse_obj(request_data)
         client_key = data.clientKey
         task_type = data.task.type
