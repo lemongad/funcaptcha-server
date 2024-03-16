@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import os
 import time
 from io import BytesIO
@@ -16,6 +17,7 @@ app = FastAPI()
 PORT = 8181
 IS_DEBUG = True
 fetcher = ModelSupportFetcher()
+question_file_path = "question/questions.json"
 
 
 class Task(BaseModel):
@@ -27,7 +29,7 @@ class Task(BaseModel):
 class TaskData(BaseModel):
     clientKey: str
     task: Task
-    softID: str
+    softID: str = 'default_value'
 
 
 def process_image(base64_image: str, variant: str):
@@ -42,42 +44,46 @@ def process_image(base64_image: str, variant: str):
     return ans
 
 
-@app.post("/createTask")
-async def create_task(request: Request):
-    try:
-        request_data = await request.json()
-        data = TaskData.parse_obj(request_data)
-        client_key = data.clientKey
-        task_type = data.task.type
-        image = data.task.image
-        question = data.task.question
-    except Exception as e:
-        print(f"Error: {e}")
+def create_task_response(taskId: str, question: str, image: str):
     ans = {
         "errorId": 0,
         "errorCode": "",
         "status": "ready",
         "solution": {
             "label": "arrows_objecthand",
+            "taskId": taskId,
+            "objects": [process_image(image, '3d_rollball_objects')]
         }
     }
 
-    taskId = hashlib.md5(str(int(time.time() * 1000)).encode()).hexdigest()
-    ans["taskId"] = taskId
     # 把question写入本地
-    if not os.path.exists('question'):
-        os.makedirs('question')
-    with open(f"question/{taskId}.txt", "w") as f:
-        f.write(question)
-    # if question in fetcher.supported_models:
-    ans["solution"]["objects"] = [process_image(image, '3d_rollball_objects')]
-    # else:
-    #     ans["errorId"] = 1
-    #     ans["errorCode"] = "ERROR_TYPE_NOT_SUPPORTED"
-    #     ans["status"] = "error"
-    #     ans["solution"]["objects"] = []
-
+    os.makedirs('question', exist_ok=True)
+    questions = {}
+    if os.path.exists(question_file_path) and os.path.getsize(question_file_path) > 0:
+        with open(question_file_path, "r") as f:
+            questions = json.load(f)
+    if question not in questions:
+        questions[question] = True
+        with open(question_file_path, "w") as f:
+            json.dump(questions, f)
     return ans
+
+
+@app.post("/createTask")
+async def create_task(request: Request):
+    try:
+        request_data = await request.json()
+        data = TaskData.parse_obj(request_data)
+        taskId = hashlib.md5(str(int(time.time() * 1000)).encode()).hexdigest()
+        return create_task_response(taskId, data.task.question, data.task.image)
+    except Exception as e:
+        logger.error(f"error: {e}")
+        return {
+            "errorId": 1,
+            "errorCode": "ERROR_UNKNOWN",
+            "status": "error",
+            "solution": {"objects": []}
+        }
 
 
 @app.get("/support")
@@ -98,21 +104,9 @@ async def balance(request: Request):
     }
 
 
-@app.exception_handler(Exception)
-async def error_handler(request: Request, exc: Exception):
-    logger.error(f"error: {exc}")
-    return {
-        "errorId": 1,
-        "errorCode": "ERROR_UNKNOWN",
-        "status": "error",
-        "solution": {"objects": []}
-    }
-
-
 if __name__ == "__main__":
     import uvicorn
 
     # 设置模型自动更新为False
     model.auto_update = False
-
     uvicorn.run(app, host="0.0.0.0", port=PORT)
