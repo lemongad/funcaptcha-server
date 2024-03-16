@@ -14,7 +14,7 @@ from util.log import logger
 from util.model_support_fetcher import ModelSupportFetcher
 
 app = FastAPI()
-PORT = 8181
+PORT = 8182
 IS_DEBUG = True
 fetcher = ModelSupportFetcher()
 question_file_path = "question/questions.json"
@@ -90,6 +90,18 @@ async def create_task(request: Request):
 async def support():
     # 从文件中读取模型列表
     return fetcher.supported_models
+@app.get("/question")
+async def question():
+    # 读取问题列表
+    try:
+        questions = {}
+        if os.path.exists(question_file_path) and os.path.getsize(question_file_path) > 0:
+            with open(question_file_path, "r") as f:
+                questions = json.load(f)
+        return questions
+    except Exception as e:
+        return {}
+
 
 
 @app.post("/getBalance")
