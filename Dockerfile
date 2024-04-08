@@ -10,7 +10,7 @@ RUN pip3 install --upgrade pip
 RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PORT=8181
+ENV PORT=7860
 EXPOSE $PORT
 
 CMD uvicorn main:app --host 0.0.0.0 --port $PORT
